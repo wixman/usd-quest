@@ -39,7 +39,7 @@ code.big{font-size:1.05em;display:inline-block;padding:6px 10px;margin:2px 0;col
 .topbar{display:flex;align-items:center;gap:10px;padding:12px 16px 8px;position:relative;z-index:5}
 .logo{font-weight:900;font-size:22px;letter-spacing:-.5px;flex:1;display:flex;align-items:center;gap:6px}
 .logo .o{background:linear-gradient(135deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-.stat{display:flex;align-items:center;gap:4px;font-weight:900;font-size:15px;padding:6px 10px;border-radius:14px;background:#ffffff0d}
+.stat{white-space:nowrap;display:flex;align-items:center;gap:4px;font-weight:900;font-size:15px;padding:6px 10px;border-radius:14px;background:#ffffff0d}
 .stat.fire{color:var(--orange)} .stat.fire.dead{color:#666;filter:grayscale(1)}
 .stat.xp{color:var(--gold)}
 .iconbtn{background:#ffffff0d;border:none;border-radius:14px;width:38px;height:38px;font-size:18px;display:grid;place-items:center}
@@ -1283,10 +1283,8 @@ function renderHome() {
   const body = H('div', { class: 'scroll' });
   if (tab === 'map') body.append(renderMap());
   if (tab === 'review') body.append(renderReview());
-  if (tab === 'lab') body.append(renderLab());
   const nav = H('div', { class: 'nav' },
     H('button', { class: tab === 'map' ? 'on' : '', onclick: () => { tab = 'map'; sfx('tap'); renderHome(); } }, H('span', { class: 'ni' }, '🗺️'), 'ROADMAP'),
-    H('button', { class: 'fab', onclick: () => { tab = 'lab'; sfx('tap'); renderHome(); } }, H('span', { class: 'ni' }, '🧪'), 'LAB'),
     H('button', { class: tab === 'review' ? 'on' : '', onclick: () => { tab = 'review'; sfx('tap'); renderHome(); } }, H('span', { class: 'ni' }, '🔥'), 'REVIEW'));
   scr.append(top, body, nav); $app.append(scr);
   requestAnimationFrame(() => {
@@ -1316,7 +1314,7 @@ function renderMap() {
       const cls = 'node ' + (done ? 'done' : open ? (isCur ? 'current' : '') : 'locked');
       const nw = H('div', { class: 'nodewrap' + (isCur && j > 0 ? ' curwrap' : ''), style: { transform: `translateX(${off}px)` } });
       if (isCur) nw.append(H('div', { class: 'bubble', style: { '--nc2': u.shadow } }, isDone(ALL[0].id) || idx > 0 ? 'START' : 'START HERE'));
-      nw.append(H('button', { class: cls, style: open && !done ? { '--nc': u.color, '--ns': u.shadow } : {}, onclick: () => openNode(it, idx) }, open ? icon : '🔒'));
+      nw.append(H('button', { class: cls, style: open && !done ? { '--nc': u.color, '--ns': u.shadow } : {}, onclick: () => openNode(ALL[idx], idx) }, open ? icon : '🔒'));
       nw.append(H('div', { class: 'nlabel' }, it.title));
       if (done) nw.append(H('div', { class: 'nstars', html: starsHTML(S.done[it.id].stars || 0) }));
       path.append(nw);

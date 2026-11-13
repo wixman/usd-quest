@@ -165,10 +165,8 @@ function renderHome() {
   const body = H('div', { class: 'scroll' });
   if (tab === 'map') body.append(renderMap());
   if (tab === 'review') body.append(renderReview());
-  if (tab === 'lab') body.append(renderLab());
   const nav = H('div', { class: 'nav' },
     H('button', { class: tab === 'map' ? 'on' : '', onclick: () => { tab = 'map'; sfx('tap'); renderHome(); } }, H('span', { class: 'ni' }, '🗺️'), 'ROADMAP'),
-    H('button', { class: 'fab', onclick: () => { tab = 'lab'; sfx('tap'); renderHome(); } }, H('span', { class: 'ni' }, '🧪'), 'LAB'),
     H('button', { class: tab === 'review' ? 'on' : '', onclick: () => { tab = 'review'; sfx('tap'); renderHome(); } }, H('span', { class: 'ni' }, '🔥'), 'REVIEW'));
   scr.append(top, body, nav); $app.append(scr);
   requestAnimationFrame(() => {
@@ -198,7 +196,7 @@ function renderMap() {
       const cls = 'node ' + (done ? 'done' : open ? (isCur ? 'current' : '') : 'locked');
       const nw = H('div', { class: 'nodewrap' + (isCur && j > 0 ? ' curwrap' : ''), style: { transform: `translateX(${off}px)` } });
       if (isCur) nw.append(H('div', { class: 'bubble', style: { '--nc2': u.shadow } }, isDone(ALL[0].id) || idx > 0 ? 'START' : 'START HERE'));
-      nw.append(H('button', { class: cls, style: open && !done ? { '--nc': u.color, '--ns': u.shadow } : {}, onclick: () => openNode(it, idx) }, open ? icon : '🔒'));
+      nw.append(H('button', { class: cls, style: open && !done ? { '--nc': u.color, '--ns': u.shadow } : {}, onclick: () => openNode(ALL[idx], idx) }, open ? icon : '🔒'));
       nw.append(H('div', { class: 'nlabel' }, it.title));
       if (done) nw.append(H('div', { class: 'nstars', html: starsHTML(S.done[it.id].stars || 0) }));
       path.append(nw);
