@@ -82,9 +82,9 @@ W.stageTree = (el, done) => {
 
 // ---------------------------------------------------------- specifiers
 W.specifiers = (el, done) => {
-  const prims = [{ n: 'Ball', s: 'def', c: PAL.red }, { n: 'Box', s: 'over', c: PAL.blue }, { n: '_class_Cone', s: 'class', c: PAL.gold }];
+  const prims = [{ n: 'Ball', ty: 'Sphere', s: 'def', c: PAL.red }, { n: 'Box', ty: 'Cube', s: 'over', c: PAL.blue }, { n: 'Cone', ty: 'Cone', s: 'class', c: PAL.gold }];
   const tick = counter(3, done);
-  const vp = H('div', { class: 'vpwrap' }), code = H('pre', { class: 'code sm' }), ctr = H('div', { class: 'specrows' });
+  const vp = H('div', { class: 'vpwrap' }), code = H('pre', { class: 'code sm' }), ctr = H('div', { class: 'specrows' }), note = H('div', { class: 'muted small' });
   const render = () => {
     let inner = '';
     prims.forEach((p, i) => {
@@ -94,7 +94,8 @@ W.specifiers = (el, done) => {
       else inner += `<g opacity=".28" stroke="#fff" stroke-dasharray="5 5" fill="none">${shape.replace(/fill="[^"]+"/, 'fill="none" stroke="#fff"')}</g><text x="${x}" y="${y + 52}" class="vlabel">${p.s === 'over' ? 'undefined' : 'abstract'}</text>`;
     });
     vp.innerHTML = vpFrame(320, 150, inner);
-    code.innerHTML = hl(prims.map(p => `${p.s} ${p.n === 'Box' ? 'Cube' : p.n === 'Ball' ? 'Sphere' : 'Cone'} "${p.n}" {}`).join('\n'), 'usda');
+    code.innerHTML = hl(prims.map(p => `${p.s} ${p.ty} "${p.n}" {}`).join('\n'), 'usda');
+    note.innerHTML = prims.some(p => p.s === 'class') ? '💡 The specifier never changes a prim\'s name. Studios often name class prims <code>_class_Something</code> just to make them easy to spot.' : '';
   };
   prims.forEach((p, i) => {
     const chips = ['def', 'over', 'class'].map(s => H('button', { class: 'chip' + (p.s === s ? ' on' : ''), onclick: (e) => {
@@ -103,7 +104,7 @@ W.specifiers = (el, done) => {
     }}, s));
     ctr.append(H('div', { class: 'specrow' }, H('b', { style: { color: p.c } }, p.n), H('div', { class: 'chips' }, chips)));
   });
-  render(); el.append(vp, ctr, code);
+  render(); el.append(vp, ctr, code, note);
 };
 
 // ---------------------------------------------------------- xformOrder
@@ -411,6 +412,129 @@ W.materialBind = (el, done) => {
   render();
   el.append(vp, H('div', { class: 'muted small' }, 'Tap a prim, then a material to bind:'), rows, matRow,
     H('label', { class: 'toggle' }, H('input', { type: 'checkbox', onchange: (e) => { strong = e.target.checked; tick('strong'); sfx('tap'); render(); } }), H('span', {}, '/Car binding: strongerThanDescendants')));
+};
+
+
+// ---------------------------------------------------------- lopLayers (Solaris)
+W.lopLayers = (el, done) => {
+  const chain = [
+    { n: 'sopimport1', t: 'SOP Import', act: 'write', d: 'def Mesh /geo/rock' },
+    { n: 'transform1', t: 'Transform', act: 'write', d: 'xformOp on /geo/rock' },
+    { n: 'sublayer1', t: 'Sublayer', act: 'disk', d: 'layout.usd (on disk)' },
+    { n: 'light1', t: 'Light', act: 'write', d: 'def RectLight /lights/key' },
+    { n: 'layerbreak1', t: 'Layer Break', act: 'break', d: 'new active layer' },
+    { n: 'edit1', t: 'Edit', act: 'write', d: 'over /lights/key (moved)' },
+  ];
+  const COLS = ['#58cc02', '#ce82ff', '#1cb0f6', '#ffc800', '#ff86d0'];
+  let idx = 0, breakOn = true;
+  const fin = once(done); const seen = new Set();
+  const list = H('div', { class: 'chain' }), stack = H('div', { class: 'lstack' }), note = H('div', { class: 'readout' });
+  const sim = () => {
+    const layers = []; const owner = [];
+    chain.forEach((c, i) => {
+      if (i > idx) { owner.push(null); return; }
+      if (c.act === 'break' && !breakOn) { owner.push(null); return; }
+      const top = layers[layers.length - 1];
+      if (c.act === 'disk') { layers.push({ kind: 'disk', items: [c.d] }); owner.push(layers.length - 1); }
+      else if (c.act === 'break') { layers.forEach(l => l.before = true); layers.push({ kind: 'anon', items: [] }); owner.push(layers.length - 1); }
+      else if (top && top.kind === 'anon') { top.items.push(c.d); owner.push(layers.length - 1); }
+      else { layers.push({ kind: 'anon', items: [c.d] }); owner.push(layers.length - 1); }
+    });
+    return { layers, owner };
+  };
+  const render = () => {
+    const { layers, owner } = sim();
+    list.innerHTML = '';
+    chain.forEach((c, i) => {
+      const li = owner[i];
+      list.append(H('button', { class: 'lopn' + (i > idx || (c.act === 'break' && !breakOn) ? ' off' : '') + (i === idx ? ' disp' : ''), onclick: () => { idx = i; seen.add(i); sfx('tap'); if (seen.size >= 4) fin(); render(); } },
+        H('span', { class: 'lc', style: { background: li == null ? '#333' : COLS[li % COLS.length] } }),
+        H('div', {}, H('b', {}, c.n), H('div', { class: 'lt' }, c.t + ' · ' + c.d)),
+        i === idx ? H('span', { class: 'flag' }, '● DISPLAY') : null));
+    });
+    stack.innerHTML = '<div class="rh">LAYER STACK (strongest first) · root layer = empty + these sublayers</div>';
+    layers.map((l, i) => [l, i]).reverse().forEach(([l, i]) => {
+      const active = i === layers.length - 1 && l.kind === 'anon';
+      stack.append(H('div', { class: 'lay', style: { borderLeftColor: COLS[i % COLS.length] } },
+        H('b', {}, l.kind === 'disk' ? 'layout.usd' : 'anon layer ' + (i + 1)),
+        l.kind === 'disk' ? H('span', { class: 'badge disk' }, 'ON DISK · never modified') : H('span', { class: 'badge' }, 'IN MEMORY'),
+        active ? H('span', { class: 'badge act' }, 'ACTIVE') : null,
+        l.before ? H('span', { class: 'badge nos' }, 'NOT SAVED') : null,
+        H('div', { class: 'muted small' }, l.items.length ? l.items.join(' · ') : '(empty so far)')));
+    });
+    const saved = layers.filter(l => l.kind === 'anon' && !l.before && l.items.length);
+    note.innerHTML = `💾 USD ROP would write: <b>${saved.length ? saved.map(l => l.items.join(', ')).join(' | ') : 'only the top-level file'}</b>`;
+  };
+  const tg = H('label', { class: 'toggle' }, H('input', { type: 'checkbox', checked: true, onchange: (e) => { breakOn = e.target.checked; sfx('tap'); seen.add('b'); render(); } }), H('span', {}, 'Layer Break enabled'));
+  render();
+  el.append(H('div', { class: 'muted small' }, 'Tap a node to move the display flag:'), list, tg, stack, note);
+};
+
+// ---------------------------------------------------------- patternTester (Solaris)
+W.patternTester = (el, done) => {
+  const P = [
+    ['/world', 'Xform', 'group'], ['/world/set', 'Xform', 'assembly'],
+    ['/world/set/table', 'Xform', 'component'], ['/world/set/table/geo', 'Scope', ''], ['/world/set/table/geo/top', 'Mesh', ''], ['/world/set/table/geo/leg1', 'Mesh', ''],
+    ['/world/set/chair1', 'Xform', 'component'], ['/world/set/chair1/geo', 'Scope', ''], ['/world/set/chair1/geo/seat', 'Mesh', ''],
+    ['/world/set/chair2', 'Xform', 'component'], ['/world/set/chair2/geo', 'Scope', ''], ['/world/set/chair2/geo/seat', 'Mesh', ''],
+    ['/world/lights', 'Scope', ''], ['/world/lights/key', 'RectLight', ''], ['/world/lights/dome', 'DomeLight', ''], ['/world/cam', 'Camera', ''],
+  ];
+  const presets = ['/world/set/*', '/world/set/**', '/world/set/chair?', '%type:Mesh', '%type:Light', '%kind:component', '%kind:group', '/world/** - /world/set/**', '/world/set/* & %kind:component', '%kind:component >>'];
+  const tried = new Set();
+  const segRe = (seg) => new RegExp('^' + seg.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '[^/]*').replace(/\?/g, '[^/]') + '$');
+  const globMatch = (pat, path) => {
+    const ps = pat.split('/').filter(Boolean), xs = path.split('/').filter(Boolean);
+    const rec = (i, j) => {
+      if (i === ps.length) return j === xs.length;
+      if (ps[i] === '**') { const last = i === ps.length - 1; for (let k = j + (last ? 1 : 0); k <= xs.length; k++) if (rec(i + 1, k)) return true; return false; }
+      return j < xs.length && segRe(ps[i]).test(xs[j]) && rec(i + 1, j + 1);
+    };
+    return rec(0, 0);
+  };
+  const KINDS = { group: ['group', 'assembly'], assembly: ['assembly'], component: ['component'], model: ['group', 'assembly', 'component'] };
+  const term = (t) => {
+    let out;
+    if (t.startsWith('%type:')) { const ty = t.slice(6); out = P.filter(p => p[1] === ty || (ty === 'Light' && /Light$/.test(p[1])) || (ty === 'Gprim' && p[1] === 'Mesh') || (ty === 'Xformable' && p[1] !== 'Scope')); }
+    else if (t.startsWith('%kind:')) { const k = KINDS[t.slice(6)] || [t.slice(6)]; out = P.filter(p => k.includes(p[2])); }
+    else out = P.filter(p => globMatch(t, p[0]));
+    return new Set(out.map(p => p[0]));
+  };
+  const evaluate = (str) => {
+    const toks = str.match(/\(|\)|>>|<<|[+\-&^]|[^\s()+&^]+/g) || [];
+    let pos = 0;
+    const expr = () => {
+      let acc = null, op = '+';
+      while (pos < toks.length && toks[pos] !== ')') {
+        const t = toks[pos++];
+        if ('+-&^'.includes(t) && t.length === 1) { op = t; continue; }
+        if (t === '>>' || t === '<<') {
+          if (!acc) continue; const add = new Set(acc);
+          for (const p of P) for (const a of acc) { if (t === '>>' && p[0].startsWith(a + '/')) add.add(p[0]); if (t === '<<' && a.startsWith(p[0] + '/')) add.add(p[0]); }
+          acc = add; continue;
+        }
+        let v; if (t === '(') { v = expr(); pos++; } else v = term(t);
+        if (!acc) acc = new Set(op === '+' ? v : []);
+        else if (op === '+') v.forEach(x => acc.add(x));
+        else if (op === '&') acc = new Set([...acc].filter(x => v.has(x)));
+        else v.forEach(x => acc.delete(x));
+        op = '+';
+      }
+      return acc || new Set();
+    };
+    try { return expr(); } catch (e) { return new Set(); }
+  };
+  const input = H('input', { class: 'ptin', value: presets[0], oninput: () => { tried.add(input.value); render(); } });
+  const tree = H('div', {}), count = H('div', { class: 'muted small center' });
+  const render = () => {
+    const hits = evaluate(input.value.trim());
+    tree.innerHTML = '';
+    P.forEach(([p, ty, k]) => { const depth = p.split('/').length - 2; tree.append(H('div', { class: 'prow' + (hits.has(p) ? ' hit' : ''), style: { paddingLeft: (8 + depth * 12) + 'px' } }, p.split('/').pop(), H('span', {}, ty + (k ? ' · ' + k : '')))); });
+    count.textContent = `${hits.size} match${hits.size === 1 ? '' : 'es'}`;
+    if (tried.size >= 3) done();
+  };
+  const chips = H('div', { class: 'chips wrap' }, presets.map(pt => H('button', { class: 'chip', style: { fontFamily: 'var(--mono)', fontSize: '11.5px' }, onclick: () => { input.value = pt; tried.add(pt); sfx('tap'); render(); } }, pt)));
+  render();
+  el.append(chips, input, count, tree);
 };
 
 const LAB_TABS = [

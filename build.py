@@ -1,7 +1,7 @@
 import pathlib
 src = pathlib.Path('src')
 css = (src/'style.css').read_text()
-js = '\n'.join((src/f).read_text() for f in ['content.js','widgets.js','engine.js'])
+js = '\n'.join((src/f).read_text() for f in ['c1.js','c2.js','c3.js','c4.js','c5.js','c6.js','widgets.js','engine.js'])
 html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>

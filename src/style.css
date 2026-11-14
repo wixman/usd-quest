@@ -281,3 +281,31 @@ input[type=range].big{width:100%}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 .empty{text-align:center;padding:30px 10px;color:var(--mut)}
 .empty .big{font-size:50px}
+
+/* callouts + part headers */
+.tip,.hou,.warn{margin-top:12px;padding:10px 12px;border-radius:12px;font-size:14.5px;line-height:1.45}
+.tip{background:#1cb0f61c;border-left:4px solid var(--blue)}
+.hou{background:#ff96001c;border-left:4px solid var(--orange)}
+.warn{background:#ff4b4b1c;border-left:4px solid var(--red)}
+.parthead{margin:26px 14px 6px;padding:16px 16px 14px;border-radius:20px;background:linear-gradient(135deg,color-mix(in srgb,var(--pc) 35%,#0d1020),#141830);border:2px solid color-mix(in srgb,var(--pc) 60%,transparent);text-align:center}
+.parthead .pt{font-weight:900;font-size:15px;letter-spacing:1.5px;color:#fff}
+.parthead .ps{font-size:12.5px;color:#cdd2f0;margin-top:3px}
+.pbar2{height:8px;border-radius:5px;background:#0006;margin:10px 0 6px;overflow:hidden}
+.pbar2 i{display:block;height:100%;background:var(--pc);border-radius:5px}
+.parthead .pn{font-size:11px;color:var(--mut);font-weight:800}
+/* lop layer sim */
+.chain{display:flex;flex-direction:column;gap:6px}
+.lopn{display:flex;align-items:center;gap:10px;background:#0a0c18;border:2px solid #ffffff14;border-radius:12px;padding:8px 10px;text-align:left;width:100%}
+.lopn .lc{width:10px;align-self:stretch;border-radius:4px}
+.lopn .lt{font-size:11px;color:var(--mut)} .lopn b{font-family:var(--mono);font-size:12.5px;font-weight:600}
+.lopn.off{opacity:.35} .lopn.disp{border-color:var(--blue)}
+.lopn .flag{margin-left:auto;font-size:11px;color:var(--blue);font-weight:900}
+.lstack .lay{border-left:5px solid;background:#0a0c18;border-radius:10px;padding:7px 10px;margin-bottom:5px;font-size:12.5px}
+.lstack .lay b{font-family:var(--mono);font-weight:600}
+.badge{display:inline-block;font-size:10px;font-weight:900;padding:2px 6px;border-radius:6px;margin-left:5px;background:#ffffff14;letter-spacing:.4px}
+.badge.act{background:var(--green);color:#0b2a00}.badge.disk{background:#ce82ff44}.badge.nos{background:#ff4b4b44}
+/* pattern tester */
+.ptin{width:100%;background:#0a0c18;border:2px solid var(--line);border-radius:12px;padding:10px 12px;color:#fff;font-family:var(--mono);font-size:13px}
+.prow{font-family:var(--mono);font-size:12px;padding:3px 8px;border-radius:7px;display:flex;justify-content:space-between;gap:6px}
+.prow.hit{background:#58cc0233;color:#bff58f}
+.prow span{color:var(--mut);font-family:'Nunito';font-weight:800;font-size:10.5px}

@@ -13,12 +13,12 @@ const KW = new Set('def over class prepend append delete add uniform custom rel 
 const TY = new Set('bool int float double string token asset float2 float3 double3 color3f point3f vector3f normal3f texCoord2f matrix4d quatf quath half'.split(' '));
 const MODS = new Set('Usd UsdGeom UsdShade UsdLux Sdf Gf Vt Tf Kind Ar'.split(' '));
 function hl(src, lang) {
-  const re = /(#[^\n]*)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|(@[^@\n]*@)|(<\/[^>\n]*>)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)/g;
+  const re = /(#[^\n]*|\/\/[^\n]*)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|(@[^@\n]*@)|(<\/[^>\n]*>)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w]*)/g;
   let out = '', last = 0, m;
   while ((m = re.exec(src))) {
     out += esc(src.slice(last, m.index)); last = re.lastIndex;
     const [t, cm, st, as, pa, nu, w] = m;
-    if (cm) out += lang === 'py' || cm.startsWith('# ') || !cm.startsWith('#usda') ? `<span class="cm">${esc(cm)}</span>` : `<span class="k">${esc(cm)}</span>`;
+    if (cm) out += cm.startsWith('#usda') ? `<span class="k">${esc(cm)}</span>` : `<span class="cm">${esc(cm)}</span>`;
     else if (st) out += `<span class="st">${esc(st)}</span>`;
     else if (as) out += `<span class="as">${esc(as)}</span>`;
     else if (pa) out += `<span class="pa">${esc(pa)}</span>`;
@@ -58,9 +58,11 @@ function sfx(kind) {
 
 // ---------------------------------------------------------- state & persistence
 const LS_KEY = 'usdquest_v1';
-const blank = () => ({ done: {}, xp: 0, days: {}, streak: { count: 0, lastDay: null, best: 0 }, miss: {}, settings: { sound: true, unlockAll: false }, updated: 0 });
+const blank = () => ({ curriculum: 2, done: {}, xp: 0, days: {}, streak: { count: 0, lastDay: null, best: 0 }, miss: {}, settings: { sound: true, unlockAll: false }, updated: 0 });
 let S = blank();
-try { const raw = localStorage.getItem(LS_KEY); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) {}
+const CURRICULUM = 2;
+function normalize(st) { if (st.curriculum !== CURRICULUM) { st.done = {}; st.miss = {}; st.curriculum = CURRICULUM; } return st; }
+try { const raw = localStorage.getItem(LS_KEY); if (raw) S = normalize(Object.assign(blank(), JSON.parse(raw))); } catch (e) {}
 let cloud = { db: null, ref: null, status: 'connecting', writing: false, pending: false, timer: null };
 
 function save() {
@@ -79,7 +81,7 @@ async function pushCloud() {
 }
 function mergeState(a, b) {
   const m = blank();
-  m.settings = a.settings;
+  m.settings = a.settings; m.curriculum = CURRICULUM;
   m.xp = Math.max(a.xp || 0, b.xp || 0);
   for (const src of [a, b]) {
     for (const k in src.done || {}) {
@@ -103,7 +105,7 @@ async function initCloud() {
     if (!db || !id) { cloud.status = 'local'; return; }
     cloud.db = db; cloud.ref = db.doc('data/users/' + id + '/progress');
     const snap = await Promise.race([cloud.ref.get(), new Promise((_, r) => setTimeout(() => r({ code: 'timeout' }), 10000))]);
-    if (snap.exists) { S = mergeState(S, snap.data()); try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} rerender(); }
+    if (snap.exists) { S = mergeState(S, normalize(JSON.parse(JSON.stringify(snap.data())))); try { localStorage.setItem(LS_KEY, JSON.stringify(S)); } catch (e) {} rerender(); }
     cloud.status = 'synced';
     pushCloud();
   } catch (e) { cloud.status = 'local'; }
@@ -171,7 +173,7 @@ function renderHome() {
   scr.append(top, body, nav); $app.append(scr);
   requestAnimationFrame(() => {
     if (scrollMem[tab] != null) body.scrollTop = scrollMem[tab];
-    else if (tab === 'map') { const c = body.querySelector('.node.current'); if (c) body.scrollTop = c.getBoundingClientRect().top - body.getBoundingClientRect().top - 180; }
+    else if (tab === 'map' && currentIdx() > 0) { const c = body.querySelector('.node.current'); if (c) body.scrollTop = c.getBoundingClientRect().top - body.getBoundingClientRect().top - 180; }
   });
 }
 
@@ -179,8 +181,16 @@ function renderHome() {
 function renderMap() {
   const wrap = H('div', { style: { paddingBottom: '110px' } });
   const cur = currentIdx();
-  let gi = 0;
+  let gi = 0, lastPart = null;
   UNITS.forEach((u) => {
+    if (u.part && u.part !== lastPart) {
+      lastPart = u.part; const P = PARTS[u.part];
+      const pUnits = UNITS.filter(x => x.part === u.part), pItems = pUnits.flatMap(x => x.items), pDone = pItems.filter(i => isDone(i.id)).length;
+      wrap.append(H('div', { class: 'parthead', style: { '--pc': P.color } },
+        H('div', { class: 'pt' }, P.title), H('div', { class: 'ps' }, P.sub),
+        H('div', { class: 'pbar2' }, H('i', { style: { width: (100 * pDone / pItems.length) + '%' } })),
+        H('div', { class: 'pn' }, `${pDone}/${pItems.length} · ${pUnits.length} units`)));
+    }
     const doneN = u.items.filter(i => isDone(i.id)).length;
     const unitEl = H('div', { class: 'unit' });
     unitEl.append(H('div', { class: 'ubanner', style: { background: u.color, '--us': u.shadow } },
@@ -361,7 +371,7 @@ function nextStep(sess) {
   if (step.t === 'info') {
     card.append(H('div', { class: 'kind' }, '💡 LEARN'), H('div', { class: 'qh' }, step.h));
     if (step.p && !step.code) card.append(H('div', { class: 'ptext', html: step.p }));
-    if (step.code) { if (step.p) card.append(H('div', { class: 'ptext', html: step.p })); card.append(H('pre', { class: 'code', html: hl(step.code, step.lang) })); }
+    if (step.code) { if (step.p) card.append(H('div', { class: 'ptext', html: step.p })); card.append(H('pre', { class: 'code', html: hl(step.code, step.lang) })); if (step.after) card.append(H('div', { class: 'ptext', html: step.after })); }
     foot.append(H('button', { class: 'btn', onclick: advance }, 'CONTINUE'));
     return;
   }
